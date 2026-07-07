@@ -48,6 +48,14 @@ rag:
   n_setups: 10                        # nearest historic setup cards to retrieve
   n_journal: 4                        # similar past journal entries to retrieve
 
+llm:
+  # Sonnet for the daily loop (low volume, pennies); Haiku for backtests
+  # (thousands of calls, cost dominates). Model choice per ARCHITECTURE §3.
+  daily_model: claude-sonnet-5
+  backtest_model: claude-haiku-4-5
+  prompt_path: prompts/vet_v1.md
+  cache_path: data/llm_cache.db       # (candidate_hash, prompt_version) -> response
+
 indicators:
   sma_fast: 50
   sma_slow: 200

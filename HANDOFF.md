@@ -74,15 +74,42 @@ Week 2 design notes still in force:
 - `entry_price` is the signal close at submit; reconcile adopts the broker's actual `avg_entry_price` once the position appears.
 - Reconcile: time-stop market-closes ≥20-trading-day positions (SPY dates = calendar); skips tickers with a pending entry order; never guesses on a vanished position with no exit fill.
 
-## Next: Week 4 — LLM vetting + backtester
-- `src/llm/contracts.py`: JSON schema validation, citation checking (every cited id must be in the bundle — hallucinated cite → auto-reject), size clamping to gate cap, retry-then-auto-reject.
-- `src/llm/vetter.py` + `prompts/vet_v1.md`: the vetting call (Sonnet daily, Haiku for bulk backtests). Feed it `build_retrieval_bundle(candidate)`; log the decision with `prompt_version`. **Read the `claude-api` skill first — don't guess model ids/params.**
-- `src/llm/cache.py`: response cache keyed on `(candidate_hash, prompt_version)` so backtest reruns are free.
-- `scripts/backtest.py`: replay 1–2 yrs, rules-only vs rules+LLM (Haiku), simulated bracket fills, honoring stops/targets bar-by-bar; retrieval date-filtered (the no-lookahead machinery already exists).
-- Wire vetting into `run_daily.py` between gates and execute (the insertion point is where rules-only currently auto-approves).
-- Done when: backtest produces a side-by-side rules-only vs rules+LLM report, and the nightly loop stores reasoning per decision.
+## Week 4 ✅ (LLM vetting + backtester) — code done
+The AI is in the loop. Built and tested (99 tests total):
+```
+src/llm/contracts.py   # parse/validate model JSON; citation check (hallucinated cite → auto-reject); size clamp to cap; retry-then-error
+src/llm/vetter.py      # the vetting call (injected client); build_user_content(bundle); output_config JSON-schema; retry-once
+src/llm/cache.py       # ResponseCache keyed on (candidate_hash, prompt_version); candidate_hash()
+src/llm/pipeline.py    # build_vetter(cfg, client) + make_vet_fn(kb, vetter) — wires retriever+vetter
+prompts/vet_v1.md      # the versioned vetting prompt (prompt_version = file stem "vet_v1")
+src/backtest/engine.py # simulate_trade() bar-by-bar stop/target/time-stop; summary_stats() (win rate, avg W/L, return, maxDD, per-rule)
+src/backtest/runner.py # run_backtest(): day-by-day replay through rules→gates→vet→sim fills; vet_fn=None is rules-only baseline
+scripts/backtest.py    # rules-only vs rules+LLM side-by-side report; --llm adds the Haiku column
+```
+Also: `run_daily.py --vet` inserts vetting between gates and execute (records verdict/size/reasoning/citations/confidence/prompt_version per decision, rejects included; submits only approved trades at the vetted size). config `llm:` section (daily_model=claude-sonnet-5, backtest_model=claude-haiku-4-5, prompt_path, cache_path).
 
-Then Week 5 = Streamlit + news, Week 6 = polish/deploy/video.
+**Verified free/offline:** rules-only backtest on real data ran end-to-end — last year: **98 trades, 51% win rate, +10.9% return, 4.5% max drawdown** (breakout 67@52%, oversold 9@56%, trend_pullback 22@45%). This is the baseline the LLM must beat. All vetting/contract/cache/backtest logic is unit-tested with fakes (no API calls).
+
+### ⚠️ Remaining for Week 4's done-when (needs your Anthropic key)
+Add `ANTHROPIC_API_KEY` to `.env` (see `.env.example`; ~$5–15/mo). Then:
+- **Backtest comparison:** `python scripts/backtest.py --llm` → side-by-side rules-only vs rules+LLM. (First run embeds/caches per-candidate Haiku calls; reruns are free via the cache.)
+- **Nightly vetting:** `python scripts/run_daily.py --execute --vet` → each candidate is vetted, reasoning/citations stored in `decisions`, only approved trades placed. To make the launchd job vet nightly, add `--vet` to the run line in `scripts/nightly.sh`.
+
+Week 4 design notes:
+- **Model choice** (ARCHITECTURE §3): Sonnet 5 daily (low volume, pennies), Haiku 4.5 for backtests (thousands of calls). Both in config; the request shape (model id + `output_config` JSON-schema) follows the current `claude-api` skill docs — read that skill before changing model/params.
+- **Safety in code, not prompt:** citations validated against the bundle (hallucination → auto-reject), size clamped to the gate cap, malformed output → `verdict:"error"` (never trades). The LLM can only reject or size *below* the cap.
+- **No lookahead in backtests:** each day's rules see only bars ≤ that day; retrieval is date-filtered; `simulate_trade` uses future bars *only* to resolve an already-committed trade's outcome.
+- `MAX_TOKENS=4096` for the vetter — Sonnet 5 runs adaptive thinking by default (shares the budget); a tight cap would truncate the JSON.
+
+## Next: Week 5 — Streamlit app + news
+- Dashboard page: equity curve, open positions, decisions feed with expandable evidence bundles (the money shot — each decision shows exactly what the AI saw and why).
+- Trade log page: filterable, joined to decisions + journal; per-rule stats.
+- Chat page: RAG Q&A over the collections (`prompts/chat_v1.md`, reuse the retriever).
+- News ingest: yfinance ticker news → `news_items` → `news` Chroma collection → add to the bundle.
+- **Cut line if behind: news first, then chat. The dashboard is non-negotiable.**
+- Done when: open the app, click a decision, show what the AI saw and why in under 30s.
+
+Then Week 6 = polish/deploy/video.
 
 ## Watch-outs
 - yfinance columns come capitalized / sometimes MultiIndex — `ingest._normalize()` handles it.

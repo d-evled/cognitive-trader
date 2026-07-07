@@ -13,6 +13,7 @@ Usage:
 Run it each evening after market close. Orders queue for the next open.
 """
 import argparse
+import json
 import sys
 from datetime import date
 from pathlib import Path
@@ -51,6 +52,9 @@ def main() -> None:
                         help="(default) show what would happen; place no orders")
     parser.add_argument("--no-fetch", action="store_true",
                         help="skip the data pull; scan whatever is already stored")
+    parser.add_argument("--vet", action="store_true",
+                        help="run LLM vetting between gates and execution "
+                             "(needs ANTHROPIC_API_KEY and a built Chroma index)")
     args = parser.parse_args()
     executing = args.execute and not args.dry_run
 
@@ -121,8 +125,25 @@ def main() -> None:
         print("Dry run: no orders placed. Use --execute to trade on paper.")
         return
 
-    # --- Execute (rules-only mode: size at the gate cap) -------------------
+    # --- Vet (optional) + Execute ------------------------------------------
+    # Without --vet: rules-only mode auto-approves at the gate cap (Week 2).
+    # With --vet: the LLM reads the retrieval bundle and returns
+    # approve/reject + a size <= cap + cited reasoning, all stored per
+    # decision. Rejects are logged too — the decisions table is the record.
     from src.broker.alpaca_client import shares_for
+    vet_fn = None
+    if args.vet:
+        import os
+
+        import anthropic
+        from src.llm.pipeline import build_vetter, make_vet_fn
+        from src.rag.embedder import KnowledgeBase
+        if not os.environ.get("ANTHROPIC_API_KEY"):
+            sys.exit("--vet needs ANTHROPIC_API_KEY in .env (see .env.example).")
+        kb = KnowledgeBase(cfg["data"]["chroma_path"], cfg["rag"]["embedding_model"])
+        vetter = build_vetter(cfg, anthropic.Anthropic(), model_key="daily_model")
+        vet_fn = make_vet_fn(kb, vetter, cfg)
+
     pending = broker.open_order_tickers()
     for r in results:
         if not r.passed:
@@ -131,21 +152,37 @@ def main() -> None:
         if c.ticker in pending:
             print(f"SKIP {c.ticker}: an order is already pending for it")
             continue
-        qty = shares_for(state.equity, r.max_size_pct, c.entry_price)
+
+        if vet_fn is None:
+            verdict, size_pct = "approve", r.max_size_pct
+            dec_kw = dict(reasoning="rules-only mode (no LLM): passed gates, sized at cap",
+                          model="rules-only")
+        else:
+            d = vet_fn(c, r.max_size_pct)
+            verdict, size_pct = d.verdict, d.size_pct
+            dec_kw = dict(reasoning=d.reasoning, model=vetter.model,
+                          confidence=d.confidence,
+                          citations_json=json.dumps(d.citations),
+                          prompt_version=vetter.prompt_version)
+            print(f"VET {c.ticker}: {verdict} @ {size_pct}% "
+                  f"(conf {d.confidence}) — {d.reasoning[:90]}")
+
+        decision_id = record_decision(conn, signal_ids[id(c)], today,
+                                      verdict=verdict, size_pct=size_pct, **dec_kw)
+        if verdict != "approve" or size_pct <= 0:
+            print(f"NO ORDER {c.ticker}: verdict={verdict}")
+            continue
+
+        qty = shares_for(state.equity, size_pct, c.entry_price)
         if qty < 1:
-            print(f"SKIP {c.ticker}: size cap buys less than one share")
+            print(f"SKIP {c.ticker}: size buys less than one share")
             continue
         order_id = broker.submit_bracket(c.ticker, qty, c.stop_price, c.target_price)
-        decision_id = record_decision(
-            conn, signal_ids[id(c)], today, verdict="approve",
-            size_pct=r.max_size_pct,
-            reasoning="rules-only mode (no LLM): passed all risk gates, sized at cap",
-            model="rules-only")
         # entry_price = signal close for now; reconcile adopts the actual
         # fill price once the position appears at the broker.
         trade_id = record_trade(conn, decision_id, c, qty=qty, entry_date=today)
         write_journal_entry(conn, trade_id, today, "entry",
-                            entry_text(c, qty, r.max_size_pct))
+                            entry_text(c, qty, size_pct))
         print(f"ORDER {c.ticker}: bracket buy {qty} @ market "
               f"(stop {c.stop_price}, target {c.target_price}) — Alpaca id {order_id}")
 
