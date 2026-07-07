@@ -1,9 +1,12 @@
 __pycache__/
 *.pyc
-data/
+# Anchored to repo root (leading slash) so these only ignore the top-level
+# runtime dirs — an un-anchored `data/` also matched `src/data/`, which silently
+# kept the entire data-layer package out of git. Do not un-anchor these.
+/data/
 .pytest_cache/
 .env
 .streamlit/secrets.toml
 
 # scheduled-run logs
-logs/
+/logs/
