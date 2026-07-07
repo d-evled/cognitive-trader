@@ -38,8 +38,15 @@ universe:
 
 data:
   db_path: data/cognitive_trader.db   # relative to repo root
+  chroma_path: data/chroma            # persistent vector store (derived; rebuildable)
   history_years: 3
   min_history_rows: 250               # skip tickers with less data than this
+
+rag:
+  # Local sentence-transformers model — free, runs on CPU, good for short text.
+  embedding_model: all-MiniLM-L6-v2
+  n_setups: 10                        # nearest historic setup cards to retrieve
+  n_journal: 4                        # similar past journal entries to retrieve
 
 indicators:
   sma_fast: 50
