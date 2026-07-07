@@ -1,5 +1,7 @@
 # Deploying the read-only demo
 
+> **Live:** https://cognitive-trader.streamlit.app/
+
 The **Dashboard** and **Trade Log** pages are pure SQLite — they render from a
 committed snapshot ([`demo/cognitive_trader.db`](demo/cognitive_trader.db)) with
 no API keys and no vector index. That makes them safe to host as a public,
@@ -66,3 +68,14 @@ git add demo/cognitive_trader.db && git commit -m "Refresh demo snapshot"
   populates `st.secrets` / env), not in the repo.
 - **The demo is illustrative, not a track record** — it's an early paper account.
   Backtest results are reported separately in the [README](README.md#honest-results).
+
+### Deploy bugs we already hit (don't repeat these)
+- **Anchor `.gitignore` dir patterns.** An un-anchored `data/` also matched
+  `src/data/`, so the whole data-layer package was silently never committed and
+  the Cloud clone crashed with `No module named 'src.data.db'` (Dashboard/Trade
+  Log only — Chat doesn't import it). The ignores are now `/data/` and `/logs/`.
+  If you add a new ignore for a top-level dir, anchor it with a leading slash.
+- **Cloud picks a newer Python than local.** The first build ran on Python 3.14,
+  where the pinned `tokenizers` had no wheel and failed to compile. The lean
+  `requirements.txt` avoids the whole ML/Rust build; if a native wheel ever still
+  fails, set the Python version to 3.12/3.13 under *Advanced settings*.

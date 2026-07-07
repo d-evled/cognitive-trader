@@ -5,6 +5,8 @@ It doesn't predict prices. It builds a *case* for each trade — grounding a lan
 model's judgment in the empirical track record of similar past setups — and shows
 you exactly what evidence it saw.
 
+**🔗 Live demo:** [cognitive-trader.streamlit.app](https://cognitive-trader.streamlit.app/) — the Dashboard and Trade Log run on a committed snapshot (read-only "📦 Demo mode"). See [DEPLOY.md](DEPLOY.md) for how it's hosted.
+
 > ⚠️ **Not financial advice.** This is a portfolio/learning project. It runs on a
 > **paper** brokerage account and has never traded real money. Most short-horizon
 > retail traders lose money. See [Disclaimer](#disclaimer).

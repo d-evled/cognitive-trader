@@ -134,9 +134,17 @@ Notes:
   - `DEPLOY.md` — exact Community Cloud steps, snapshot-refresh command, secrets flow. `.streamlit/secrets.toml.example` added; `.streamlit/secrets.toml` gitignored.
 - **`DEMO.md`** — a timed 3–5 min video script following one candidate: signal → gates → evidence bundle → vet+cite → order → journal → honest measurement. (Recording is the user's to do.)
 - Full suite green: **114 passed**.
-- Remaining (user-owned): push to a public GitHub repo + click-through the Community Cloud deploy; record the video; optionally set `ANTHROPIC_API_KEY` to demo Chat answers + `--vet`/`--llm`; tag `v1.0` (see below).
 - Interview prep: rehearse the 7 design decisions (ARCHITECTURE §11 / README table).
-- Done when: a stranger can go URL → README → video and understand the project in 10 minutes.
+
+## SHIPPED — v1.0 is live 🚀
+- **Repo:** https://github.com/d-evled/cognitive-trader (public; topics + `v1.0` release published).
+- **Live demo:** https://cognitive-trader.streamlit.app/ — Dashboard + Trade Log render the committed snapshot in "📦 Demo mode"; Chat shows its "run locally" notice by design.
+- **Two deploy bugs found + fixed during the Cloud rollout** (both documented in DEPLOY.md → "Deploy bugs we already hit"):
+  1. **Python-3.14 wheel build failure** — Cloud built on a newer Python than local; the pinned `tokenizers` had no wheel and failed to compile. Fixed by splitting `requirements.txt` (lean deploy: streamlit/altair/pandas/pyyaml/dotenv) vs `requirements-full.txt` (RAG/LLM/broker + tests for local). The demo host never installs torch now.
+  2. **Over-broad `.gitignore` hid `src/data/`** — the un-anchored `data/` pattern matched `src/data/` too, so the entire data-layer package (db/ingest/news) was never committed and the Cloud clone crashed with `No module named 'src.data.db'` (Dashboard/Trade Log only; Chat unaffected). Fixed by anchoring to `/data/` and `/logs/` and committing the package. **Lesson: anchor gitignore dir patterns with a leading slash.**
+- **Optional polish left (all user-owned, none blocking):** record the demo video from `DEMO.md`; periodically refresh the snapshot (`cp data/cognitive_trader.db demo/cognitive_trader.db` + commit) so the equity curve/Trade Log fill in; add `ANTHROPIC_API_KEY` in the app's Streamlit Secrets to light up Chat answers on the live demo.
+
+## Watch-outs
 
 ## Watch-outs
 - yfinance columns come capitalized / sometimes MultiIndex — `ingest._normalize()` handles it.
