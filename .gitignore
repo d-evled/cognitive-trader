@@ -3,3 +3,6 @@ __pycache__/
 data/
 .pytest_cache/
 .env
+
+# scheduled-run logs
+logs/

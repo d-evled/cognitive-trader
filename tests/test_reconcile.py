@@ -21,10 +21,14 @@ from src.signals.rules import Candidate
 class FakeBroker:
     positions: list = field(default_factory=list)
     exit_fills: dict = field(default_factory=dict)   # ticker -> ExitFill
+    pending_tickers: set = field(default_factory=set)  # entry order accepted, not filled
     market_closes: list = field(default_factory=list)  # tickers we were asked to close
 
     def open_positions(self):
         return self.positions
+
+    def open_order_tickers(self):
+        return set(self.pending_tickers)
 
     def latest_exit_fill(self, ticker):
         return self.exit_fills.get(ticker)
@@ -115,9 +119,21 @@ class TestReconcile:
         row = conn.execute("SELECT entry_price FROM trades WHERE id=?", (trade_id,)).fetchone()
         assert row["entry_price"] == 201.35
 
+    def test_pending_entry_order_is_not_treated_as_vanished(self, conn):
+        """A just-submitted bracket sits as an accepted entry with no
+        position yet (fills at the next open). Reconcile must NOT mistake
+        'not filled yet' for 'was held and vanished' — no warning, no exit."""
+        seed_open_trade(conn, entry_date="2026-07-06")
+        broker = FakeBroker(positions=[], pending_tickers={"AAPL"})
+
+        events = reconcile(conn, broker, today="2026-07-06", time_stop_days=20)
+
+        assert len(open_trades(conn)) == 1
+        assert events == []
+
     def test_vanished_position_with_no_fill_found_is_left_alone(self, conn):
-        """If Alpaca has no position AND no exit fill (e.g. API hiccup),
-        don't guess — leave the trade open and report it."""
+        """If Alpaca has no position, no pending order, AND no exit fill
+        (e.g. API hiccup), don't guess — leave the trade open and report it."""
         seed_open_trade(conn)
         broker = FakeBroker(positions=[], exit_fills={})
 

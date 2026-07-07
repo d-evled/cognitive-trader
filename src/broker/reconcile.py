@@ -23,11 +23,17 @@ def reconcile(conn: sqlite3.Connection, broker, today: str,
     """Returns human-readable event lines for the daily report."""
     events: list[str] = []
     held = {p.ticker for p in broker.open_positions()}
+    pending = broker.open_order_tickers()  # entry accepted but not filled yet
 
     for t in open_trades(conn):
         ticker = t["ticker"]
 
         if ticker not in held:
+            # A freshly submitted bracket has an accepted entry and no
+            # position until the next open. That's not a vanished position —
+            # leave it alone until it fills (or its order disappears).
+            if ticker in pending:
+                continue
             fill = broker.latest_exit_fill(ticker)
             if fill is None:
                 # Position gone but no sell fill visible — API lag or a

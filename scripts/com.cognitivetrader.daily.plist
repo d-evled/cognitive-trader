@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.cognitivetrader.daily</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/samxie/Desktop/proj/Cowork/CognitiveTrader/Cognitive Trader/scripts/nightly.sh</string>
+    </array>
+
+    <!-- 2:00pm Pacific, Monday(1) through Friday(5): one hour after the
+         US market close (4pm ET / 1pm PT), so EOD data has settled. -->
+    <key>StartCalendarInterval</key>
+    <array>
+        <dict><key>Weekday</key><integer>1</integer><key>Hour</key><integer>14</integer><key>Minute</key><integer>0</integer></dict>
+        <dict><key>Weekday</key><integer>2</integer><key>Hour</key><integer>14</integer><key>Minute</key><integer>0</integer></dict>
+        <dict><key>Weekday</key><integer>3</integer><key>Hour</key><integer>14</integer><key>Minute</key><integer>0</integer></dict>
+        <dict><key>Weekday</key><integer>4</integer><key>Hour</key><integer>14</integer><key>Minute</key><integer>0</integer></dict>
+        <dict><key>Weekday</key><integer>5</integer><key>Hour</key><integer>14</integer><key>Minute</key><integer>0</integer></dict>
+    </array>
+
+    <key>StandardOutPath</key>
+    <string>/Users/samxie/Desktop/proj/Cowork/CognitiveTrader/Cognitive Trader/logs/launchd.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/samxie/Desktop/proj/Cowork/CognitiveTrader/Cognitive Trader/logs/launchd.err.log</string>
+</dict>
+</plist>
