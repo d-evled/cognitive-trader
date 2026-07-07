@@ -77,6 +77,17 @@ class KnowledgeBase:
         self.journal.upsert(ids=ids, documents=texts,
                             embeddings=self.embed(texts), metadatas=metadatas)
 
+    def add_news(self, ids: list[str], texts: list[str],
+                 metadatas: list[dict]) -> None:
+        """Upsert news items; date_ord (from each metadata's 'date') powers the
+        recency / no-lookahead filter, same as setup cards."""
+        if not ids:
+            return
+        for md in metadatas:
+            md["date_ord"] = date_ord(md["date"])
+        self.news.upsert(ids=ids, documents=texts,
+                         embeddings=self.embed(texts), metadatas=metadatas)
+
     # --- reads (the retriever's `store` interface) ------------------------
 
     def _to_hits(self, res: dict) -> list[Hit]:
@@ -94,6 +105,25 @@ class KnowledgeBase:
             n_results=k,
             where={"date_ord": {"$lte": date_ord(as_of_date)}},
         )
+        return self._to_hits(res)
+
+    def search_journal(self, text: str, k: int) -> list[Hit]:
+        """Unfiltered nearest journal entries — for free-form chat, which has
+        no rule to filter on."""
+        if self.journal.count() == 0:
+            return []
+        return self._to_hits(self.journal.query(
+            query_embeddings=self.embed([text]), n_results=k))
+
+    def query_news(self, text: str, ticker: str, as_of_date: str,
+                   k: int) -> list[Hit]:
+        """k recent news items for a ticker, dated on/before as_of_date."""
+        if self.news.count() == 0:
+            return []
+        res = self.news.query(
+            query_embeddings=self.embed([text]), n_results=k,
+            where={"$and": [{"ticker": ticker},
+                            {"date_ord": {"$lte": date_ord(as_of_date)}}]})
         return self._to_hits(res)
 
     def query_journal(self, text: str, rule_name: str, k: int) -> list[Hit]:

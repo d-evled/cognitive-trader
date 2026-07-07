@@ -1,0 +1,12 @@
+# Cognitive Trader — a dark "quant desk" theme. Warm amber accent against
+# near-black, so the evidence and numbers carry the interface.
+[theme]
+base = "dark"
+primaryColor = "#E0A458"
+backgroundColor = "#111318"
+secondaryBackgroundColor = "#1A1D25"
+textColor = "#E8E6E1"
+font = "sans serif"
+
+[server]
+headless = true

@@ -131,18 +131,17 @@ def main() -> None:
     # approve/reject + a size <= cap + cited reasoning, all stored per
     # decision. Rejects are logged too — the decisions table is the record.
     from src.broker.alpaca_client import shares_for
-    vet_fn = None
+    vetter = kb = None
     if args.vet:
         import os
 
         import anthropic
-        from src.llm.pipeline import build_vetter, make_vet_fn
+        from src.llm.pipeline import build_vetter
         from src.rag.embedder import KnowledgeBase
         if not os.environ.get("ANTHROPIC_API_KEY"):
             sys.exit("--vet needs ANTHROPIC_API_KEY in .env (see .env.example).")
         kb = KnowledgeBase(cfg["data"]["chroma_path"], cfg["rag"]["embedding_model"])
         vetter = build_vetter(cfg, anthropic.Anthropic(), model_key="daily_model")
-        vet_fn = make_vet_fn(kb, vetter, cfg)
 
     pending = broker.open_order_tickers()
     for r in results:
@@ -153,17 +152,21 @@ def main() -> None:
             print(f"SKIP {c.ticker}: an order is already pending for it")
             continue
 
-        if vet_fn is None:
+        if vetter is None:
             verdict, size_pct = "approve", r.max_size_pct
             dec_kw = dict(reasoning="rules-only mode (no LLM): passed gates, sized at cap",
                           model="rules-only")
         else:
-            d = vet_fn(c, r.max_size_pct)
+            from src.rag.retriever import build_retrieval_bundle, bundle_to_json
+            bundle = build_retrieval_bundle(c, kb, n_setups=cfg["rag"]["n_setups"],
+                                            n_journal=cfg["rag"]["n_journal"])
+            d = vetter.vet(c, bundle, r.max_size_pct)
             verdict, size_pct = d.verdict, d.size_pct
             dec_kw = dict(reasoning=d.reasoning, model=vetter.model,
                           confidence=d.confidence,
                           citations_json=json.dumps(d.citations),
-                          prompt_version=vetter.prompt_version)
+                          prompt_version=vetter.prompt_version,
+                          bundle_json=bundle_to_json(bundle))  # store what the AI saw
             print(f"VET {c.ticker}: {verdict} @ {size_pct}% "
                   f"(conf {d.confidence}) — {d.reasoning[:90]}")
 

@@ -15,6 +15,7 @@ setups query passes the candidate's date as an as-of cutoff so retrieval
 never sees data from the future (the no-lookahead guarantee that keeps
 backtests honest — ARCHITECTURE.md §8).
 """
+import json
 from statistics import median
 
 from src.rag.setup_cards import FORWARD_HORIZONS
@@ -22,6 +23,7 @@ from src.signals.rules import Candidate
 
 N_SETUPS = 10
 N_JOURNAL = 4
+N_NEWS = 5
 _HORIZON_KEYS = tuple(f"fwd_{h}d" for h in FORWARD_HORIZONS)
 
 
@@ -70,11 +72,36 @@ def build_retrieval_bundle(candidate: Candidate, store,
 
     setup_stats = {h: forward_return_stats(setups, horizon=h) for h in _HORIZON_KEYS}
 
+    # News is optional — only stores that expose query_news provide it (the
+    # collection may be empty until news is ingested). Date-filtered like the
+    # rest, and scoped to the candidate's ticker.
+    news = []
+    if hasattr(store, "query_news"):
+        news = store.query_news(query, ticker=candidate.ticker,
+                                as_of_date=candidate.date, k=N_NEWS)
+
     return {
         "candidate": candidate,
         "query": query,
         "setups": setups,
         "setup_stats": setup_stats,
         "journal": journal,
-        "news": [],  # Phase 3 (Week 5)
+        "news": news,
     }
+
+
+def bundle_to_json(bundle: dict) -> str:
+    """Serialize the display-relevant parts of a bundle so it can be stored
+    with the decision and re-rendered in the dashboard exactly as the model
+    saw it (ARCHITECTURE §5.4). Hit objects → plain dicts."""
+    def hits(items):
+        return [{"id": h.id, "text": h.text, "metadata": h.metadata,
+                 "distance": round(getattr(h, "distance", 0.0), 4)}
+                for h in items]
+    return json.dumps({
+        "query": bundle["query"],
+        "setups": hits(bundle["setups"]),
+        "setup_stats": bundle["setup_stats"],
+        "journal": hits(bundle["journal"]),
+        "news": hits(bundle.get("news", [])),
+    })

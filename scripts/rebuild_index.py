@@ -59,6 +59,13 @@ def main() -> None:
     conn.commit()
     n = sync_journal(conn, kb)
     print(f"Journal entries embedded: {n}")
+
+    # --- news -------------------------------------------------------------
+    from src.data.news import sync_news
+    conn.execute("UPDATE news_items SET embedded=0")
+    conn.commit()
+    nn = sync_news(conn, kb)
+    print(f"News items embedded: {nn}")
     print("Done. Chroma index rebuilt from SQLite.")
 
 

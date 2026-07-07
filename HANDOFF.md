@@ -101,15 +101,37 @@ Week 4 design notes:
 - **No lookahead in backtests:** each day's rules see only bars ≤ that day; retrieval is date-filtered; `simulate_trade` uses future bars *only* to resolve an already-committed trade's outcome.
 - `MAX_TOKENS=4096` for the vetter — Sonnet 5 runs adaptive thinking by default (shares the budget); a tight cap would truncate the JSON.
 
-## Next: Week 5 — Streamlit app + news
-- Dashboard page: equity curve, open positions, decisions feed with expandable evidence bundles (the money shot — each decision shows exactly what the AI saw and why).
-- Trade log page: filterable, joined to decisions + journal; per-rule stats.
-- Chat page: RAG Q&A over the collections (`prompts/chat_v1.md`, reuse the retriever).
-- News ingest: yfinance ticker news → `news_items` → `news` Chroma collection → add to the bundle.
-- **Cut line if behind: news first, then chat. The dashboard is non-negotiable.**
-- Done when: open the app, click a decision, show what the AI saw and why in under 30s.
+## Week 5 ✅ (Streamlit app + news) — done
+Three-page app, verified in a real browser (all pages load, retrieval works, no errors). 110 tests.
+```
+.streamlit/config.toml        # dark "quant desk" theme (amber on near-black)
+src/app/ui.py                 # shared chrome: theme CSS (Fraunces + JetBrains Mono), get_conn (routes through db.get_conn → migrations), render_bundle()
+src/app/queries.py            # data layer (tested): open_positions (unrealized P&L), recent_decisions (+parsed bundle), equity_curve, trade_log
+src/app/streamlit_app.py      # Dashboard: metrics, equity curve, open positions, decisions feed — each expands to the stored evidence bundle (the money shot)
+src/app/pages/1_Trade_Log.py  # filterable trade table + per-rule stats
+src/app/pages/2_Chat.py       # RAG Q&A: retrieval always works; answer generation needs ANTHROPIC_API_KEY (gated)
+src/data/news.py              # fetch_news (yfinance, defensive) + store_news_items (dedup by URL) + sync_news
+scripts/ingest_news.py        # fetch → store → embed into the news collection
+```
+Run the app: `streamlit run src/app/streamlit_app.py` (or via `.claude/launch.json`).
 
-Then Week 6 = polish/deploy/video.
+New this week:
+- **Bundle storage** — `decisions.bundle_json` (added via an idempotent migration in `db.get_conn`); `run_daily --vet` stores `bundle_to_json(bundle)` per decision, so the dashboard renders exactly what the model saw. Rules-only decisions have no bundle (shown as such).
+- **News in the bundle** — `KnowledgeBase.add_news/query_news` (ticker + date-filtered, no lookahead); `retriever.build_retrieval_bundle` includes news when the store supports `query_news`. **Verified live:** ingested 155 headlines, 129 stored + embedded.
+- `rebuild_index.py` now also re-embeds news.
+
+Notes:
+- The app's `get_conn` routes through `db.get_conn` so schema migrations apply to an old DB file (the bundle_json column). Streamlit caches imported modules — **restart the server after editing `src/app/*.py`**, a rerun isn't enough.
+- Chat/dashboard need the Chroma index built (`scripts/rebuild_index.py`); the dashboard itself only needs SQLite.
+- Still no `ANTHROPIC_API_KEY` set — the Chat answer and `--vet`/`--llm` remain gated on it. Dashboard, trade log, chat *retrieval*, and news all work without it.
+
+## Next: Week 6 — polish, deploy, package
+- README: what/why, architecture diagram, honest backtest results (rules-only baseline is 98 trades / 51% / +10.9% / 4.5% maxDD over the last year — the LLM must beat it), screenshots, disclaimers.
+- Deploy to Streamlit Community Cloud in read-only demo mode (dashboard + chat on a snapshot DB; trading loop stays local). `requirements.txt` is ready; watch the torch-2.2 pins on the cloud image.
+- 3–5 min demo video: one candidate's full journey — signal → evidence → reasoning → order → journal.
+- Interview prep: rehearse the 7 design decisions (ARCHITECTURE §11).
+- Tag `v1.0`.
+- Done when: a stranger can go URL → README → video and understand the project in 10 minutes.
 
 ## Watch-outs
 - yfinance columns come capitalized / sometimes MultiIndex — `ingest._normalize()` handles it.
