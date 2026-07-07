@@ -5,4 +5,11 @@ pytest>=8.0
 alpaca-py>=0.43
 python-dotenv>=0.21
 chromadb>=0.5
-sentence-transformers>=3.0
+# Pinned to versions compatible with torch 2.2.x (the anaconda base ships
+# torch 2.2.2). Newer sentence-transformers/transformers require torch>=2.4
+# and a huggingface_hub that dropped the HfFolder symbol they still import.
+# Bump these together only alongside a torch>=2.4 upgrade.
+sentence-transformers==2.7.0
+transformers==4.41.2
+huggingface_hub==0.23.4
+tokenizers>=0.19,<0.20
