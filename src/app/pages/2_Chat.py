@@ -36,10 +36,22 @@ question = st.text_input("Your question")
 if not question:
     st.stop()
 
-kb = _kb()
-today = date.today().isoformat()
-setups = kb.query_setups(question, as_of_date=today, k=6)
-journal = kb.search_journal(question, k=6)
+# Retrieval needs the Chroma index + sentence-transformers, which live under
+# the gitignored data/ dir. On a read-only deploy (e.g. Streamlit Cloud) the
+# index isn't present — degrade with a clear notice instead of a stack trace.
+try:
+    kb = _kb()
+    today = date.today().isoformat()
+    setups = kb.query_setups(question, as_of_date=today, k=6)
+    journal = kb.search_journal(question, k=6)
+except Exception as e:  # missing index, or heavy deps unavailable on cloud
+    st.warning(
+        "Chat retrieval needs the local vector index (`data/chroma`), which "
+        "isn't available in this deployment. Run it locally — see the README "
+        "quickstart (`rebuild_index.py`). The Dashboard and Trade Log work here "
+        "without it.")
+    st.caption(f"_details: {type(e).__name__}_")
+    st.stop()
 
 # --- answer (needs the API key) ------------------------------------------
 have_key = bool(os.environ.get("ANTHROPIC_API_KEY"))

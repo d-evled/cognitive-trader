@@ -125,12 +125,17 @@ Notes:
 - Chat/dashboard need the Chroma index built (`scripts/rebuild_index.py`); the dashboard itself only needs SQLite.
 - Still no `ANTHROPIC_API_KEY` set — the Chat answer and `--vet`/`--llm` remain gated on it. Dashboard, trade log, chat *retrieval*, and news all work without it.
 
-## Next: Week 6 — polish, deploy, package
-- README: what/why, architecture diagram, honest backtest results (rules-only baseline is 98 trades / 51% / +10.9% / 4.5% maxDD over the last year — the LLM must beat it), screenshots, disclaimers.
-- Deploy to Streamlit Community Cloud in read-only demo mode (dashboard + chat on a snapshot DB; trading loop stays local). `requirements.txt` is ready; watch the torch-2.2 pins on the cloud image.
-- 3–5 min demo video: one candidate's full journey — signal → evidence → reasoning → order → journal.
-- Interview prep: rehearse the 7 design decisions (ARCHITECTURE §11).
-- Tag `v1.0`.
+## Week 6 ✅ — polish, deploy, package
+- **`README.md`** — pitch, the 7 design decisions as a table, the honest results table (rules-only 98/51%/+10.9%/4.5% maxDD), an ASCII architecture flow, quickstart, project layout, and a prominent disclaimer.
+- **Deploy-ready for Streamlit Community Cloud (read-only demo):**
+  - `demo/cognitive_trader.db` — committed snapshot (2 MB) so a fresh clone / cloud deploy isn't blank (`data/` is gitignored).
+  - `src/app/ui.resolve_db_path` — falls back to the demo snapshot when the live DB is absent; `demo_banner()` shows a "📦 Demo mode" notice. Live DB takes over automatically once you run the pipeline locally. **4 new tests** (`tests/test_app_demo.py`), TDD.
+  - Chat page degrades gracefully (try/except around the index load) so it shows a "run locally" notice on cloud instead of a stack trace. Dashboard + Trade Log are the SQLite-only demo surface — no keys, no torch.
+  - `DEPLOY.md` — exact Community Cloud steps, snapshot-refresh command, secrets flow. `.streamlit/secrets.toml.example` added; `.streamlit/secrets.toml` gitignored.
+- **`DEMO.md`** — a timed 3–5 min video script following one candidate: signal → gates → evidence bundle → vet+cite → order → journal → honest measurement. (Recording is the user's to do.)
+- Full suite green: **114 passed**.
+- Remaining (user-owned): push to a public GitHub repo + click-through the Community Cloud deploy; record the video; optionally set `ANTHROPIC_API_KEY` to demo Chat answers + `--vet`/`--llm`; tag `v1.0` (see below).
+- Interview prep: rehearse the 7 design decisions (ARCHITECTURE §11 / README table).
 - Done when: a stranger can go URL → README → video and understand the project in 10 minutes.
 
 ## Watch-outs

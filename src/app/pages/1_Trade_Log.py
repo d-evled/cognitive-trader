@@ -9,7 +9,7 @@ import pandas as pd
 import streamlit as st
 
 from src.app.queries import closed_trades, trade_log
-from src.app.ui import disclaimer, get_cfg, get_conn, setup_page
+from src.app.ui import demo_banner, disclaimer, get_cfg, get_conn, setup_page
 from src.backtest.engine import summary_stats
 
 setup_page("Trade Log", icon="📒")
@@ -18,6 +18,7 @@ conn = get_conn()
 
 st.title("Trade log")
 disclaimer()
+demo_banner()
 
 rows = trade_log(conn)
 if not rows:

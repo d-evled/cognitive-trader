@@ -52,13 +52,47 @@ def get_cfg() -> dict:
     return load_config()
 
 
+DEMO_DB_PATH = "demo/cognitive_trader.db"  # committed snapshot for cloud/read-only
+
+
+def resolve_db_path(live_path: str, demo_path: str = DEMO_DB_PATH,
+                    exists=None) -> tuple[str, bool]:
+    """Decide which DB the UI should read, and whether it's the demo snapshot.
+
+    Live DB present → use it. Missing but the committed demo exists (fresh
+    clone / Streamlit Cloud, where data/ is gitignored) → serve the demo so the
+    app isn't blank. Neither → hand back the live path so db.get_conn creates a
+    fresh empty DB (normal first-run-before-backfill). Only the UI's read path
+    uses this; backfill/run_daily write through db.get_conn directly."""
+    if exists is None:
+        import os
+        exists = os.path.exists
+    if exists(live_path):
+        return live_path, False
+    if exists(demo_path):
+        return demo_path, True
+    return live_path, False
+
+
 def get_conn() -> sqlite3.Connection:
     """Fresh read connection per script run (SQLite connect is cheap; a
     cached connection would cross Streamlit's script threads). Routed through
     db.get_conn so the schema + migrations (e.g. decisions.bundle_json) are
     applied even on an older DB file."""
     from src.data.db import get_conn as _db_conn
-    return _db_conn(get_cfg()["data"]["db_path"])
+    path, is_demo = resolve_db_path(get_cfg()["data"]["db_path"])
+    if is_demo:
+        st.session_state["_demo_mode"] = True
+    return _db_conn(path)
+
+
+def demo_banner() -> None:
+    """Shown when the app is serving the committed snapshot instead of a live
+    account — so a cloud visitor knows the numbers are illustrative."""
+    if st.session_state.get("_demo_mode"):
+        st.info("📦 **Demo mode** — showing a committed snapshot (the live "
+                "`data/` directory isn't present). Run the pipeline locally for "
+                "your own account. See the README.")
 
 
 def disclaimer() -> None:

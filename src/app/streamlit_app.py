@@ -19,7 +19,8 @@ from src.app.queries import (
     closed_trades, equity_curve, open_positions, recent_decisions,
 )
 from src.app.ui import (
-    _verdict_html, disclaimer, get_cfg, get_conn, render_bundle, setup_page,
+    _verdict_html, demo_banner, disclaimer, get_cfg, get_conn, render_bundle,
+    setup_page,
 )
 from src.backtest.engine import summary_stats
 
@@ -30,6 +31,7 @@ start_equity = cfg["risk"]["starting_equity"]
 
 st.title("Cognitive Trader")
 disclaimer()
+demo_banner()
 
 positions = open_positions(conn)
 closed = closed_trades(conn)

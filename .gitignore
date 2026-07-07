@@ -3,6 +3,7 @@ __pycache__/
 data/
 .pytest_cache/
 .env
+.streamlit/secrets.toml
 
 # scheduled-run logs
 logs/
