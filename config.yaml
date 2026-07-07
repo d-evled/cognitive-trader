@@ -1,0 +1,70 @@
+# Cognitive Trader configuration
+# Everything tunable lives here so code never hard-codes a magic number.
+
+universe:
+  # ~30 liquid US large caps + 2 index ETFs. Sector tags are used by the
+  # max-per-sector risk gate.
+  AAPL:  tech
+  MSFT:  tech
+  NVDA:  tech
+  GOOGL: tech
+  AMZN:  consumer
+  META:  tech
+  TSLA:  consumer
+  AVGO:  tech
+  AMD:   tech
+  ORCL:  tech
+  CRM:   tech
+  NFLX:  consumer
+  JPM:   financial
+  V:     financial
+  MA:    financial
+  GS:    financial
+  UNH:   healthcare
+  JNJ:   healthcare
+  LLY:   healthcare
+  ABBV:  healthcare
+  XOM:   energy
+  CVX:   energy
+  HD:    consumer
+  COST:  consumer
+  WMT:   consumer
+  PG:    consumer
+  KO:    consumer
+  CAT:   industrial
+  BA:    industrial
+  SPY:   etf
+  QQQ:   etf
+
+data:
+  db_path: data/cognitive_trader.db   # relative to repo root
+  history_years: 3
+  min_history_rows: 250               # skip tickers with less data than this
+
+indicators:
+  sma_fast: 50
+  sma_slow: 200
+  rsi_window: 14
+  atr_window: 14
+  breakout_window: 20
+  volume_window: 20
+
+rules:
+  trend_pullback:
+    rsi_dip_below: 40      # RSI must have dipped under this in the lookback...
+    dip_lookback: 5        # ...within this many days, and be turning up now
+  breakout:
+    volume_mult: 1.5       # today's volume vs its 20d average
+  oversold_reversion:
+    rsi_below: 30
+
+risk:
+  starting_equity: 100000      # paper account starting value
+  max_position_pct: 10.0       # max % of equity in any one position
+  max_open_positions: 5
+  max_per_ticker: 1
+  max_per_sector: 2
+  max_risk_per_trade_pct: 2.0  # (entry - stop) * shares <= this % of equity
+  stop_atr_mult: 2.0           # stop-loss distance below entry, in ATRs
+  target_atr_mult: 3.0         # take-profit distance above entry, in ATRs
+  time_stop_days: 20           # auto-close positions older than this
