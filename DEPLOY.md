@@ -36,7 +36,14 @@ git add demo/cognitive_trader.db && git commit -m "Refresh demo snapshot"
 2. **Create the app** at [share.streamlit.io](https://share.streamlit.io) →
    *New app* → pick your repo/branch.
    - **Main file path:** `src/app/streamlit_app.py`
-   - Community Cloud auto-installs from the root `requirements.txt`.
+   - Community Cloud auto-installs from the root `requirements.txt` — which is
+     deliberately **lean** (streamlit/altair/pandas/pyyaml/dotenv only). The heavy
+     ML/RAG stack is in `requirements-full.txt` and is **not** installed on Cloud
+     (torch/tokenizers don't build on Cloud's newer Python, and the demo pages
+     don't need them).
+   - **Python version:** if the build fails compiling a native wheel, set the
+     Python version to **3.12 or 3.13** under *Advanced settings* (Cloud may
+     otherwise pick a version too new for some wheels).
 
 3. **(Optional) Enable the Chat page's answer generation** — add your Anthropic
    key under *App → Settings → Secrets*:
@@ -50,10 +57,11 @@ git add demo/cognitive_trader.db && git commit -m "Refresh demo snapshot"
 
 ## Notes / watch-outs
 
-- **`requirements.txt` is heavy** (chromadb + sentence-transformers + torch) so a
-  fresh clone can rebuild the index locally. Community Cloud will install it fine,
-  but the build is large; if you want a leaner cloud image, the two SQLite pages
-  need only `streamlit`, `altair`, `pandas`, and `pyyaml`.
+- **Two requirements files.** Root `requirements.txt` is the lean deploy set (the
+  two SQLite pages need only `streamlit`, `altair`, `pandas`, `pyyaml`, and
+  `python-dotenv`). `requirements-full.txt` adds the RAG/LLM/broker stack for
+  local development. Cloud uses the lean file automatically — no torch, no Rust
+  build, fast deploys.
 - **Never commit secrets.** Cloud secrets go in the Streamlit Secrets UI (which
   populates `st.secrets` / env), not in the repo.
 - **The demo is illustrative, not a track record** — it's an early paper account.

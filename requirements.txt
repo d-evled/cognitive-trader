@@ -1,18 +1,12 @@
-pandas>=2.0
-yfinance>=0.2.40
-pyyaml>=6.0
-pytest>=8.0
-alpaca-py>=0.43
-python-dotenv>=0.21
-chromadb>=0.5
-# Pinned to versions compatible with torch 2.2.x (the anaconda base ships
-# torch 2.2.2). Newer sentence-transformers/transformers require torch>=2.4
-# and a huggingface_hub that dropped the HfFolder symbol they still import.
-# Bump these together only alongside a torch>=2.4 upgrade.
-sentence-transformers==2.7.0
-transformers==4.41.2
-huggingface_hub==0.23.4
-tokenizers>=0.19,<0.20
-anthropic>=0.69
+# Lean deploy set — exactly what the hosted Streamlit demo needs. The deployed
+# pages (Dashboard + Trade Log) are SQLite-only, so this stays free of the heavy
+# ML/RAG/broker stack. That's what keeps the Streamlit Community Cloud build fast
+# and avoids compiling torch/tokenizers (which fail on Cloud's newer Python).
+#
+# For full local development (data pipeline, RAG index, LLM vetting, tests):
+#     pip install -r requirements-full.txt
 streamlit>=1.40
 altair>=5.0
+pandas>=2.0
+pyyaml>=6.0
+python-dotenv>=0.21

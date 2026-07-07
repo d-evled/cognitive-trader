@@ -133,8 +133,9 @@ streamlit run src/app/streamlit_app.py
 ## Quickstart
 
 ```bash
-# 1. Install (Python 3.11; the RAG deps are pinned for torch 2.2 — see requirements.txt)
-pip install -r requirements.txt
+# 1. Install (Python 3.11). Full local stack — data pipeline, RAG, LLM, tests:
+pip install -r requirements-full.txt
+#    (requirements.txt alone is the lean set the hosted demo uses — just the app)
 
 # 2. Configure keys (all optional — the system degrades gracefully without them)
 cp .env.example .env
